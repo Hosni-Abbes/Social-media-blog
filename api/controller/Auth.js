@@ -1,6 +1,6 @@
 const User = require('../model/User');
 const bcrypt = require('bcrypt');
-
+const { generateToken } = require('../middlewares/authJWT');
 
 // Register
 exports.register = async (req, res) => {
@@ -46,10 +46,14 @@ exports.login = async (req, res) => {
             if(!verifiedPassword){
                 res.status(401).send({message: 'Wrong credentials!'});
             }else{
+                // generate access token
+                const token = generateToken(user);
+
                 res.status(200).send({user:{
                         id: user.id,
                         username: user.username,
-                        email: user.email
+                        email: user.email,
+                        accesstoken: token
                     }
                 });
             }
@@ -66,7 +70,7 @@ exports.login = async (req, res) => {
 
 exports.logout = async (req, res) => {
     try {
-        const userId = req.body.userId;
+        const userId = req.payload.id;
 
         const user = await User.findByPk(userId);
         
@@ -76,7 +80,8 @@ exports.logout = async (req, res) => {
             user:{
                 id: null,
                 username: null,
-                email: null
+                email: null,
+                accesstoken: null
             },
             message: 'Logout successfully.'
         });

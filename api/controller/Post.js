@@ -52,7 +52,9 @@ exports.findOnePostBySlug = async (req, res) => {
 exports.create = async (req, res) => {
 
     try{
-        const { title, content, category, userId, images } = req.body;
+        const { title, content, category, images } = req.body;
+
+        const userId = req.payload.id;
         
         if(!title || !content || !category){
             return res.status(400).send('Please enter a title content and category for post.');
@@ -60,7 +62,6 @@ exports.create = async (req, res) => {
 
         // Check on user
         const user = await User.findOne({where:{id: userId}});
-        if(!user) return res.status(400).send({message: 'User not exist'});
 
         // Set slug
         const slug = slugify(title, {lower: true});
@@ -102,8 +103,6 @@ exports.create = async (req, res) => {
         }
 
 
-
-
         res.status(200).send({message: 'Post has been created.'});
 
 
@@ -117,10 +116,15 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
     try {
         const postId = req.params.id;
+        const userId = req.payload.id;
         const { title, content, category, images } = req.body;
+        
         const post = await Post.findByPk(postId);
 
         if(!post) return res.status(404).send({message: 'Post not exist.'});
+
+        // 
+        if(post.UserId !== userId) return res.status(403).send({message: 'You are not authorized to this action.'});
 
         // check Category
         const categoryExist = await Category.findOne({where: {name: category.name}});
@@ -171,10 +175,15 @@ exports.update = async (req, res) => {
 // delete one post
 exports.deleteOne = async (req, res) => {
     try {
-        const id = req.params.id;
-        const post = await Post.findByPk(id);
+        const postId = req.params.id;
+        const userId = req.payload.id;
+
+        const post = await Post.findByPk(postId);
         if(!post) return res.status(400).send({message: 'Error: Post not exist.'});
-        await Post.destroy({where:{id}});
+
+        if(post.UserId !== userId) return res.status(403).send({message: 'You are not authorized to this action.'});
+        
+        await Post.destroy({where:{id: postId}});
         res.status(200).send({message: 'Post has been removed.'});
 
     } catch(err) {
@@ -185,13 +194,13 @@ exports.deleteOne = async (req, res) => {
 // delete all posts
 exports.deleteAll = async (req, res) => {
     try {
-        const userId = req.body.user;
+        const userId = req.payload.id;
         const posts = await Post.findAll({where:{user_id: userId}});
 
         if(posts.length == 0) return res.status(404).send({message: 'No posts exist.'});
 
         await Post.destroy({
-            where: {},
+            where: {user_id: userId},
             truncate: false
         });
 
